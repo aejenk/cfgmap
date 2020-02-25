@@ -1,8 +1,39 @@
 use std::collections::HashMap;
+pub use crate::conditions::{Checkable, Condition};
+
+macro_rules! is_type {
+    ($fn_name:ident, $enum_type:path) => {
+        /// Checks whether the enum is a $enum_type.
+        pub fn $fn_name (&self) -> bool {
+            if let $enum_type(_) = self {
+                true
+            } else { false }
+        }
+    };
+
+    ($fn_name:ident [rg], $enum_type:path) => {
+        /// Checks whether the enum is a $enum_type.
+        pub fn $fn_name (&self) -> bool {
+            if let $enum_type(_,_) = self {
+                true
+            } else { false }
+        }
+    };
+
+    ($fn_name:ident [0], $enum_type:path) => {
+        /// Checks whether the enum is a $enum_type.
+        pub fn $fn_name (&self) -> bool {
+            if let $enum_type = self {
+                true
+            } else { false }
+        }
+    };
+}
 
 macro_rules! as_type {
-    ($name:ident, $type:ty, $enum_type:path) => {
-        pub fn $name(&self) -> Option<&$type> {
+    ($fn_name:ident, $type:ty, $enum_type:path) => {
+        /// Returns a reference to the $type. Result is `None` if contents aren't a `$enum_type`.
+        pub fn $fn_name (&self) -> Option<&$type> {
             if let $enum_type(x) = self {
                 Some(x)
             } else { None }
@@ -10,13 +41,16 @@ macro_rules! as_type {
     };
 }
 
-/// Commonalities with "AS"
-/// 
-/// pub fn as_NAME(&self) -> Option<&TYPE> {
-///     if let ENUM_TYPE(x) = self {
-///         Some(x)
-///     } else { None }
-/// }
+macro_rules! as_mut_type {
+    ($fn_name:ident, $type:ty, $enum_type:path) => {
+        /// Returns a mutable reference to the $type. Result is `None` if contents aren't a `$enum_type`.
+        pub fn $fn_name (&mut self) -> Option<&mut $type> {
+            if let $enum_type(x) = self {
+                Some(x)
+            } else { None }
+        }
+    };
+}
 
 /// Represents a value within a `CfgMap`
 /// 
@@ -45,37 +79,9 @@ pub enum CfgValue {
 
     /// Represents a list of values. These values can have differing types.
     List(Vec<CfgValue>),
-
-    /// An empty value.
-    Empty
 }
 
 impl CfgValue {
-    /// Checks whether the enum is Empty.
-    fn is_empty(&self) -> bool {
-        if let CfgValue::Empty = self {
-            true
-        } else { false }
-    }
-
-    /// Checks whether the enum is an Int.
-    fn is_int(&self) -> bool {
-        if let CfgValue::Int(_) = self {
-            true
-        } else { false }
-    }
-
-
-    /// Returns a reference to the int within the enum.
-    /// Returns `None` if the enum isn't `CfgValue::Int`.
-    // pub fn as_int(&self) -> Option<&isize> {
-    //     if let CfgValue::Int(x) = self {
-    //         Some(x)
-    //     } else { None }
-    // }
-
-    as_type!(as_int, isize, CfgValue::Int);
-
     /// Returns the contents of the enum converted into an integer, if possible.
     /// If the enum represents a float, it will be converted into an integer.
     pub fn to_int(&self) -> Option<isize> {
@@ -86,21 +92,6 @@ impl CfgValue {
         } else { None }
     }
 
-    /// Checks whether the enum is a Float.
-    fn is_float(&self) -> bool {
-        if let CfgValue::Float(_) = self {
-            true
-        } else { false }
-    }
-
-    /// Returns a reference to the float within the enum.
-    /// Returns `None` if the enum isn't `CfgValue::Float`.
-    pub fn as_float(&self) -> Option<&f64> {
-        if let CfgValue::Float(x) = self {
-            Some(x)
-        } else { None }
-    }
-
     /// Returns the contents of the enum converted into a float, if possible.
     /// If the enum represents an integer, it will be converted into a float.
     pub fn to_float(&self) -> Option<f64> {
@@ -108,63 +99,6 @@ impl CfgValue {
             Some(*x)
         } else if let CfgValue::Int(x) = self {
             Some(*x as f64)
-        } else { None }
-    }
-
-    /// Checks whether the enum is a String.
-    fn is_str(&self) -> bool {
-        if let CfgValue::Str(_) = self {
-            true
-        } else { false }
-    }
-
-    /// Returns a reference to the internal string.
-    /// Returns `None` if the enum isn't `CfgValue::Str`.
-    pub fn as_str(&self) -> Option<&String> {
-        if let CfgValue::Str(x) = self {
-            Some(x)
-        } else { None }
-    }
-
-    /// Checks whether the enum is an IRange.
-    fn is_irange(&self) -> bool {
-        if let CfgValue::IRange(_,_) = self {
-            true
-        } else { false }
-    }
-
-    /// Checks whether the enum is an FRange.
-    fn is_frange(&self) -> bool {
-        if let CfgValue::FRange(_,_) = self {
-            true
-        } else { false }
-    }
-
-    /// Checks whether the enum is a Map.
-    fn is_map(&self) -> bool {
-        if let CfgValue::Map(_) = self {
-            true
-        } else { false }
-    }
-
-    /// Converts the enum into a `CfgMap`, if possible.
-    pub fn as_map(&self) -> Option<CfgMap> {
-        if let CfgValue::Map(x) = self {
-            Some(x.clone())
-        } else { None }
-    }
-
-    /// Checks whether the enum is a List.
-    fn is_list(&self) -> bool {
-        if let CfgValue::List(_) = self {
-            true
-        } else { false }
-    }
-
-    /// Returns a reference to the list. Result is `None` if contents aren't a list.
-    pub fn as_list(&self) -> Option<&Vec<CfgValue>> {
-        if let CfgValue::List(x) = self {
-            Some(x)
         } else { None }
     }
 
@@ -182,13 +116,42 @@ impl CfgValue {
         } else { None }
     }
 
-    /// A method to check the enum for different conditions.
-    /// This is preferred over the `is_x` methods, as it uses them
-    /// with insignificant overhead. This method also includes 
-    /// features presented by `Condition`, which allows for 
-    /// chaining of conditions.
-    pub fn check_that(&self, c: conditions::Condition) -> bool {
-        return conditions::PrimedCondition {input: self}.that(c);
+    is_type!(is_int, CfgValue::Int);
+    is_type!(is_float, CfgValue::Float);
+    is_type!(is_str, CfgValue::Str);
+    is_type!(is_map, CfgValue::Map);
+    is_type!(is_list, CfgValue::List);
+    is_type!(is_irange [rg], CfgValue::IRange);
+    is_type!(is_frange [rg], CfgValue::FRange);
+
+    as_type!(as_int, isize, CfgValue::Int);
+    as_type!(as_float, f64, CfgValue::Float);
+    as_type!(as_str, str, CfgValue::Str);
+    as_type!(as_map, CfgMap, CfgValue::Map);
+    as_type!(as_list, Vec<CfgValue>, CfgValue::List);
+
+    as_mut_type!(as_mut_int, isize, CfgValue::Int);
+    as_mut_type!(as_mut_float, f64, CfgValue::Float);
+    as_mut_type!(as_mut_str, str, CfgValue::Str);
+    as_mut_type!(as_mut_map, CfgMap, CfgValue::Map);
+    as_mut_type!(as_mut_list, Vec<CfgValue>, CfgValue::List);
+}
+
+impl conditions::Checkable for CfgValue {
+    fn check_that(&self, c: conditions::Condition) -> bool {
+        return c.execute(self).is_true();
+    }
+}
+
+impl conditions::Checkable for Option<&CfgValue> {
+    fn check_that(&self, c: conditions::Condition) -> bool {
+        self.as_ref().map_or(false, |v| v.check_that(c))
+    }
+}
+
+impl conditions::Checkable for Option<&mut CfgValue> {
+    fn check_that(&self, c: conditions::Condition) -> bool {
+        self.as_ref().map_or(false, |v| v.check_that(c))
     }
 }
 
@@ -230,8 +193,8 @@ pub struct CfgMap {
     defaults: HashMap<String, CfgValue>
 }
 
-/// check
 impl CfgMap {
+
     /// Creates a new empty CfgMap.
     pub fn new() -> CfgMap {
         CfgMap { internal_map: HashMap::new(), defaults: HashMap::new() }
@@ -247,9 +210,11 @@ impl CfgMap {
             unimplemented!()
         }
         else {
-            let subtree = self.get(&path.unwrap());
-            if subtree.check_that(conditions::Condition::Is_Map) {
-                
+            let subtree = self.get_mut(&path.unwrap());
+            if subtree.check_that(Condition::Is_Map) {
+                subtree.unwrap().as_mut_map().unwrap().add(key, value);
+                // Return successful result.
+                unimplemented!()
             }
             else {
                 // The path doesn't exist, so the addition fails.
@@ -274,36 +239,51 @@ impl CfgMap {
     /// 
     /// If at any point an element doesn't exist, or isn't a valid map,
     /// the function returns `CfgValue::Empty`.
-    pub fn get(&self, key: &str) -> &CfgValue {
+    pub fn get(&self, key: &str) -> Option<&CfgValue> {
         let (h, t) = split_once(key, '/');
 
         if t.is_none() {
-            self.internal_map.get(key).unwrap_or(&CfgValue::Empty)
+            self.internal_map.get(key)
         }
         else {
-            if let Some(CfgValue::Map(map)) = self.internal_map.get(&h) {
+            self.internal_map.get(&h).and_then(|op| {
+                op.as_map()
+            }).and_then(|map| {
                 map.get(&t.unwrap())
+            })
+        }
+    }
+
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut CfgValue> {
+        let (h, t) = split_once(key, '/');
+
+        if t.is_none() {
+            self.internal_map.get_mut(key)
+        }
+        else {
+            if let Some(CfgValue::Map(map)) = self.internal_map.get_mut(&h) {
+                map.get_mut(&t.unwrap())
             }
             else{
-                &CfgValue::Empty
+                None
             }
         }
     }
 
     /// Retrieves a default value from within the configuration.
     /// Same as `get`, but for *default* values.
-    pub fn get_default(&self, key: &str) -> &CfgValue {
+    pub fn get_default(&self, key: &str) -> Option<&CfgValue> {
         let (h, t) = split_once(key, '/');
 
         if t.is_none() {
-            self.defaults.get(key).unwrap_or(&CfgValue::Empty)
+            self.defaults.get(key)
         }
         else {
             if let Some(CfgValue::Map(map)) = self.defaults.get(&h) {
                 map.get(&t.unwrap())
             }
             else{
-                &CfgValue::Empty
+                None
             }
         }
     }
@@ -314,20 +294,31 @@ impl CfgMap {
     /// 
     /// - `get(category/option)`
     /// - `get_default(option)`
-    pub fn get_option(&self, category: &str, option: &str) -> &CfgValue {
+    pub fn get_option(&self, category: &str, option: &str) -> Option<&CfgValue> {
         let opt = self.get(&format!("{}/{}", category, option));
-        if !opt.is_empty() { return opt; }
+        if !opt.is_none() { return opt; }
         let default = self.get_default(option);
-        if !default.is_empty() { return default; }
+        if !default.is_none() { return default; }
 
-        &CfgValue::Empty
+        None
     }
 }
 
 /// Contains functionality regarding conditions based on `CfgValue`s.
-/// Primarily used for the `check_that` functions in CfgMap.
+/// 
+/// **INSERT MORE HERE**
 pub mod conditions {
     use std::ops::{BitAnd, BitOr};
+
+    /// Trait for the `check_that` function, that allows it to run a condition on a struct.
+    pub trait Checkable {
+        /// A method to check the enum for different conditions.
+        /// This is preferred over the `is_x` methods, as it uses them
+        /// with insignificant overhead. This method also includes 
+        /// features presented by `Condition`, which allows for 
+        /// chaining of conditions.
+        fn check_that(&self, c: Condition) -> bool;
+    }
 
     /// Different possible conditions.
     /// 
@@ -360,7 +351,6 @@ pub mod conditions {
         Is_Listlike,
 
         Is_Map,
-        Exists,
         /// A combination of two conditions.
         /// 
         /// If both evaluate to `TRUE`, the result is `TRUE`, otherwise it is `FALSE`.
@@ -402,7 +392,7 @@ pub mod conditions {
         /// ```
         /// 
         /// will return `Condition::TRUE`.
-        fn execute(&self, input: &super::CfgValue) -> Condition {
+        pub fn execute(&self, input: &super::CfgValue) -> Condition {
             use Condition::*;
 
             match self {
@@ -413,7 +403,6 @@ pub mod conditions {
                 Is_FRange => Condition::from_bool(input.is_frange()),
                 Is_List => Condition::from_bool(input.is_list()),
                 Is_Map => Condition::from_bool(input.is_map()),
-                Exists => Condition::from_bool(!input.is_empty()),
                 TRUE => TRUE,
                 FALSE => FALSE,
                 And(x,y) => {
@@ -442,14 +431,14 @@ pub mod conditions {
         }
 
         /// Specifies whether the result is true.
-        fn is_true(&self) -> bool {
+        pub fn is_true(&self) -> bool {
             if let Condition::TRUE = self {
                 true
             } else { false }
         }
 
         /// Specifies whether the result is false.
-        fn is_false(&self) -> bool {
+        pub fn is_false(&self) -> bool {
             if let Condition::FALSE = self {
                 true
             } else { false }
@@ -473,44 +462,4 @@ pub mod conditions {
             self.or(rhs)
         }
     }
-
-    /// A wrapper around an input for a condition.
-    /// Used in order to execute a condition on a specific input.
-    /// 
-    /// This is abstracted by using the `check_that` method of a given enum.
-    /// So, for example:
-    /// 
-    /// ```
-    /// CfgValue::Int(5).check_that(Is_Int)
-    /// ```
-    /// 
-    /// is the same as doing:
-    /// 
-    /// ```
-    /// PrimedCondition {input: &CfgValue::Int(5)}.that(Is_Int)
-    /// ```
-    pub struct PrimedCondition<'a> {
-        /// Represents the input that the condition will be executed on.
-        pub input: &'a super::CfgValue
-    }
-
-    impl<'a> PrimedCondition<'a> {
-        /// Executes the condition passed on the input that this wrapper was primed with.
-        /// If the input is `CfgValue::Empty`, it avoids executing the condition and always returns `false`.
-        pub fn that(&self, condition: Condition) -> bool {
-            if self.input.is_empty() {
-                return false;
-            }
-
-            let result = condition.execute(&self.input);
-            result.is_true()
-        }
-    }
 }
-
-// #[cfg(test)]
-// mod tests {
-
-//     #[test]
-    
-// }
