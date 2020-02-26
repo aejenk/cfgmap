@@ -328,8 +328,8 @@ impl CfgMap {
     /// Gets a reference to a value from within the configuration.
     /// 
     /// The `key` can be of the form of the path `"a/b/...y/z/"`, in which case it will
-    /// get the inner submap `a/b/...y/`, and add `z` onto it. This is for convenience sake,
-    /// as doing this manually can prove to be verbose.
+    /// go through the inner submaps `"a/b/..."` until a submap isn't found, or the end is reached.
+    /// This is for convenience sake, as doing this manually can prove to be verbose.
     /// 
     /// Returns `None` if the key doesn't exist.
     /// 
@@ -367,8 +367,8 @@ impl CfgMap {
     /// Returns `None` if the key doesn't exist.
     /// 
     /// The `key` can be of the form of the path `"a/b/...y/z/"`, in which case it will
-    /// get the inner submap `a/b/...y/`, and add `z` onto it. This is for convenience sake,
-    /// as doing this manually can prove to be verbose.
+    /// go through the inner submaps `"a/b/..."` until a submap isn't found, or the end is reached.
+    /// This is for convenience sake, as doing this manually can prove to be verbose.
     /// 
     /// ## Examples
     /// ```
@@ -405,8 +405,8 @@ impl CfgMap {
     /// Returns `None` if the key doesn't exist within the default values.
     /// 
     /// The `key` can be of the form of the path `"a/b/...y/z/"`, in which case it will
-    /// get the inner submap `a/b/...y/`, and add `z` onto it. This is for convenience sake,
-    /// as doing this manually can prove to be verbose.
+    /// go through the inner submaps `"a/b/..."` until a submap isn't found, or the end is reached.
+    /// This is for convenience sake, as doing this manually can prove to be verbose.
     /// 
     /// ## Examples
     /// ```
@@ -442,8 +442,8 @@ impl CfgMap {
     /// Returns `None` if the key doesn't exist within the default values.
     /// 
     /// The `key` can be of the form of the path `"a/b/...y/z/"`, in which case it will
-    /// get the inner submap `a/b/...y/`, and add `z` onto it. This is for convenience sake,
-    /// as doing this manually can prove to be verbose.
+    /// go through the inner submaps `"a/b/..."` until a submap isn't found, or the end is reached.
+    /// This is for convenience sake, as doing this manually can prove to be verbose.
     /// 
     /// ## Examples
     /// ```
@@ -482,8 +482,8 @@ impl CfgMap {
     /// Returns `None` if the key doesn't exist in either map.
     /// 
     /// The `key` can be of the form of the path `"a/b/...y/z/"`, in which case it will
-    /// get the inner submap `a/b/...y/`, and add `z` onto it. This is for convenience sake,
-    /// as doing this manually can prove to be verbose.
+    /// go through the inner submaps `"a/b/..."` until a submap isn't found, or the end is reached.
+    /// This is for convenience sake, as doing this manually can prove to be verbose.
     /// 
     /// ## Examples
     /// ```
