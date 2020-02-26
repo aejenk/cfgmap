@@ -1,5 +1,5 @@
 [package]
-name = "cmap"
+name = "cfgmap"
 version = "0.1.0"
 authors = ["Calmynt <mctech26@gmail.com>"]
 edition = "2018"
@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "cmap"
-path = "src/cmap.rs"
+name = "cfgmap"
+path = "src/cfgmap.rs"
 
 [dependencies]
