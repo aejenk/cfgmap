@@ -1,4 +1,4 @@
-use std::ops::{BitAnd, BitOr};
+use std::ops::{BitAnd, BitOr, Not};
 
 /// Trait for the `check_that` function, that allows it to run a condition on a struct.
 pub trait Checkable {
@@ -56,6 +56,9 @@ pub enum Condition {
     /// If one evaluates to `TRUE`, the result is `TRUE`, otherwise it is `FALSE`.
     Or(Box<Condition>, Box<Condition>),
 
+    /// Represents a negation.
+    Not(Box<Condition>),
+
     /// A result condition. When executed this will always return `true`.
     TRUE,
 
@@ -73,6 +76,11 @@ impl Condition {
     /// Helper function to generate an `OR` condition.
     pub fn or(self, other: Condition) -> Condition {
         Condition::Or(Box::new(self), Box::new(other))
+    }
+
+    /// Helper function to generate a `NOT` condition.
+    pub fn not(self) -> Condition {
+        Condition::Not(Box::new(self))
     }
 
     /// Executes the condition. For all conditions, this function
@@ -117,6 +125,11 @@ impl Condition {
                     TRUE
                 } else {FALSE}
             },
+            Not(x) => {
+                let res = x.execute(input);
+
+                if res.to_bool() { FALSE } else { TRUE }
+            },
             Is_Listlike => (Is_List | Is_IRange | Is_FRange).execute(input),
         }
     }
@@ -151,5 +164,14 @@ impl BitOr for Condition {
 
     fn bitor(self, rhs: Self) -> Self::Output {
         self.or(rhs)
+    }
+}
+
+/// Syntactical sugar for `a.not()`
+impl Not for Condition {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        self.not()
     }
 }
