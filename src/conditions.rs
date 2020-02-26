@@ -1,7 +1,3 @@
-//! Contains functionality regarding conditions based on `CfgValue`s.
-//! 
-//! **TODO: FILL THIS IN**
-
 use std::ops::{BitAnd, BitOr};
 
 /// Trait for the `check_that` function, that allows it to run a condition on a struct.
@@ -14,7 +10,7 @@ pub trait Checkable {
 
 /// Different possible conditions.
 /// 
-/// Many conditions are self explanatory, such as `Is_Int` and `Exists`.
+/// Many conditions are self explanatory, such as `Is_Int` and `Is_Listlike`.
 /// Complex conditions can be created easily using the `|` and `&` operators.
 /// So, for example, if you want to check whether an enum is an integer, *or* a float,
 /// you can do the following:
@@ -60,10 +56,10 @@ pub enum Condition {
     /// If one evaluates to `TRUE`, the result is `TRUE`, otherwise it is `FALSE`.
     Or(Box<Condition>, Box<Condition>),
 
-    /// A result condition. When executed this will always return TRUE.
+    /// A result condition. When executed this will always return `true`.
     TRUE,
 
-    /// A result condition. When executed this will always return FALSE.
+    /// A result condition. When executed this will always return `false`.
     FALSE
 }
 
