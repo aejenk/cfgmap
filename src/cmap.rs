@@ -1,54 +1,74 @@
 use std::collections::HashMap;
 mod conditions;
 pub use conditions::{Checkable, Condition};
+use std::concat;
+
+macro_rules! doc_comment {
+    ($x:expr, $($tt:tt)*) => {
+        #[doc = $x]
+        $($tt)*
+    };
+}
 
 macro_rules! is_type {
     ($fn_name:ident, $enum_type:path) => {
-        /// Checks whether the enum is a $enum_type.
-        pub fn $fn_name (&self) -> bool {
-            if let $enum_type(_) = self {
-                true
-            } else { false }
+        doc_comment! {
+            concat!("Checks whether the enum is a `", stringify!($enum_type), "`."),
+            pub fn $fn_name (&self) -> bool {
+                if let $enum_type(_) = self {
+                    true
+                } else { false }
+            }
         }
     };
 
     ($fn_name:ident [rg], $enum_type:path) => {
-        /// Checks whether the enum is a $enum_type.
-        pub fn $fn_name (&self) -> bool {
-            if let $enum_type(_,_) = self {
-                true
-            } else { false }
+        doc_comment! {
+            concat!("Checks whether the enum is a `", stringify!($enum_type), "`."),
+            pub fn $fn_name (&self) -> bool {
+                if let $enum_type(_,_) = self {
+                    true
+                } else { false }
+            }
         }
     };
 
     ($fn_name:ident [0], $enum_type:path) => {
-        /// Checks whether the enum is a $enum_type.
-        pub fn $fn_name (&self) -> bool {
-            if let $enum_type = self {
-                true
-            } else { false }
+        doc_comment! {
+            concat!("Checks whether the enum is a `", stringify!($enum_type), "`."),
+            pub fn $fn_name (&self) -> bool {
+                if let $enum_type = self {
+                    true
+                } else { false }
+            }
         }
     };
 }
 
 macro_rules! as_type {
     ($fn_name:ident, $type:ty, $enum_type:path) => {
-        /// Returns a reference to the $type. Result is `None` if contents aren't a `$enum_type`.
-        pub fn $fn_name (&self) -> Option<&$type> {
-            if let $enum_type(x) = self {
-                Some(x)
-            } else { None }
+        doc_comment! {
+            concat!("Returns a reference to the `", stringify!($type),
+                    "`. Result is `None` if contents aren't a `", stringify!($enum_type), "`."),
+            pub fn $fn_name (&self) -> Option<&$type> {
+                if let $enum_type(x) = self {
+                    Some(x)
+                } else { None }
+            }
         }
     };
 }
 
 macro_rules! as_mut_type {
     ($fn_name:ident, $type:ty, $enum_type:path) => {
-        /// Returns a mutable reference to the $type. Result is `None` if contents aren't a `$enum_type`.
-        pub fn $fn_name (&mut self) -> Option<&mut $type> {
-            if let $enum_type(x) = self {
-                Some(x)
-            } else { None }
+        doc_comment! {
+            concat!("Returns a reference to the `", stringify!($type),
+                    "`. Result is `None` if contents aren't a `", stringify!($enum_type), "`."),
+            pub fn $fn_name (&mut self) -> Option<&mut $type> {
+                if let $enum_type(x) = self {
+                    Some(x)
+                } else { None }
+            }
         }
     };
 }
@@ -84,6 +104,7 @@ pub enum CfgValue {
 
 impl CfgValue {
     /// Returns the contents of the enum converted into an integer, if possible.
+    /// 
     /// If the enum represents a float, it will be converted into an integer.
     pub fn to_int(&self) -> Option<isize> {
         if let CfgValue::Int(x) = self {
@@ -94,6 +115,7 @@ impl CfgValue {
     }
 
     /// Returns the contents of the enum converted into a float, if possible.
+    /// 
     /// If the enum represents an integer, it will be converted into a float.
     pub fn to_float(&self) -> Option<f64> {
         if let CfgValue::Float(x) = self {
@@ -104,9 +126,12 @@ impl CfgValue {
     }
 
     /// Returns a clone of the enum's contents as a list, if possible.
+    /// 
     /// Use this for any listlike types, like `IRange`, and `FRange`.
+    /// 
     /// If you know the contents to be a `List`, and you only want a 
-    /// reference, use `as_list` or `as_list_mut` instead.
+    /// reference, use [`as_list`](#method.as_list) or
+    /// [`as_list_mut`](#method.as_list_mut) instead.
     pub fn to_list(&self) -> Option<Vec<CfgValue>> {
         if let CfgValue::List(x) = self {
             Some(x.clone())
