@@ -4,3 +4,10 @@
 name = "cfgmap"
 version = "0.1.0"
 
+[[package]]
+name = "cfgmap_json"
+version = "0.1.0"
+
+[[package]]
+name = "cfgmap_toml"
+version = "0.1.0"
