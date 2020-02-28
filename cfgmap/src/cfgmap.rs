@@ -2,6 +2,9 @@ use std::collections::HashMap;
 mod conditions;
 pub use conditions::{Checkable, Condition};
 use std::concat;
+use std::mem;
+use std::ops::Deref;
+use std::ops::DerefMut;
 
 macro_rules! doc_comment {
     ($x:expr, $($tt:tt)*) => {
@@ -16,28 +19,6 @@ macro_rules! is_type {
             concat!("Checks whether the enum is a `", stringify!($enum_type), "`."),
             pub fn $fn_name (&self) -> bool {
                 if let $enum_type(_) = self {
-                    true
-                } else { false }
-            }
-        }
-    };
-
-    ($fn_name:ident [rg], $enum_type:path) => {
-        doc_comment! {
-            concat!("Checks whether the enum is a `", stringify!($enum_type), "`."),
-            pub fn $fn_name (&self) -> bool {
-                if let $enum_type(_,_) = self {
-                    true
-                } else { false }
-            }
-        }
-    };
-
-    ($fn_name:ident [0], $enum_type:path) => {
-        doc_comment! {
-            concat!("Checks whether the enum is a `", stringify!($enum_type), "`."),
-            pub fn $fn_name (&self) -> bool {
-                if let $enum_type = self {
                     true
                 } else { false }
             }
@@ -178,23 +159,44 @@ fn rsplit_once(in_string: &str, pat: char) -> (Option<String>, String) {
     (Some(second), first)
 }
 
+impl Deref for CfgMap {
+    type Target = HashMap<String, CfgValue>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.internal_map
+    }
+}
+
+impl DerefMut for CfgMap {
+    fn deref_mut (&mut self) -> &mut Self::Target {
+        &mut self.internal_map
+    }
+}
+
+
 /// A configuration map, containing helper functions and effectively being a wrapper
-/// around two `HashMap`s.
+/// around a `HashMap`s.
 /// 
 /// **TODO: FILL THIS IN**
 #[derive(Debug, Clone, PartialEq)]
 pub struct CfgMap {
     /// An internal map representing the configuration.
     internal_map: HashMap<String, CfgValue>,
-    /// A map containing default values.
-    defaults: HashMap<String, CfgValue>
+
+    /// A path to the default subobject.
+    default: String
 }
 
 impl CfgMap {
 
     /// Creates a new empty CfgMap.
     pub fn new() -> CfgMap {
-        CfgMap { internal_map: HashMap::new(), defaults: HashMap::new() }
+        CfgMap { internal_map: HashMap::new(), default: String::new() }
+    }
+
+    /// Creates a new empty CfgMap with a default directory.
+    pub fn with_default(path: String) -> CfgMap {
+        CfgMap { internal_map: HashMap::new(), default: format!("{}/", path) }
     }
 
     /// Adds a new entry in the configuration.
@@ -209,7 +211,7 @@ impl CfgMap {
     /// ## Examples
     /// 
     /// ```
-    /// use cmap::{CfgMap, CfgValue::*};
+    /// use cfgmap::{CfgMap, CfgValue::*};
     /// 
     /// let mut cmap = CfgMap::new();
     /// 
@@ -237,57 +239,8 @@ impl CfgMap {
         }
         else {
             let subtree = self.get_mut(&path.unwrap());
-            if subtree.check_that(Condition::Is_Map) {
+            if subtree.check_that(Condition::IsMap) {
                 subtree.unwrap().as_map_mut().unwrap().add(&key, value)
-            }
-            else {
-                Err(())
-            }
-        }
-    }
-
-    /// Adds a new entry in the default configuration.
-    /// 
-    /// The `key` can be of the form of the path `"a/b/...y/z/"`, in which case it will
-    /// get the inner submap `a/b/...y/`, and add `z` onto it. This is for convenience sake,
-    /// as doing this manually can prove to be verbose.
-    /// 
-    /// In order to add a normal value to a default submap - you would need to do this manually, as 
-    /// this function will always use `get_default_mut`.
-    /// 
-    /// ## Examples
-    /// 
-    /// ```
-    /// use cmap::{CfgMap, CfgValue::*};
-    /// 
-    /// let mut cmap = CfgMap::new();
-    /// 
-    /// // Works - a root add like this will always work.
-    /// assert!(cmap.add_default("k1", Int(5)).is_ok());
-    /// 
-    /// // Doesn't work, because k1 isn't a map.
-    /// assert!(cmap.add_default("k1/k2", Int(10)).is_err());
-    /// 
-    /// // Works - returns the old value.
-    /// let r = cmap.add_default("k1", Float(8.0));
-    /// assert_eq!(Ok(Some(Int(5))), r);
-    /// ```
-    /// 
-    /// ## Return values
-    /// 
-    /// - `Err` if the path as specified by `key` isn't found. In the case above for example, `get_default_mut("a")` returns a `None`.
-    /// - `Ok(Some(CfgValue))` if the path as specified by key already contained a value, and was overwritten. In this case, the old value is returned.
-    /// - `Ok(None)` otherwise.
-    pub fn add_default(&mut self, key: &str, value: CfgValue) -> Result<Option<CfgValue>, ()> {
-        let (path, key) = rsplit_once(key, '/');
-
-        if path.is_none(){
-            Ok(self.defaults.insert(key.to_string(), value))
-        }
-        else {
-            let subtree = self.get_default_mut(&path.unwrap());
-            if subtree.check_that(Condition::Is_Map) {
-                subtree.unwrap().as_map_mut().unwrap().add_default(&key, value)
             }
             else {
                 Err(())
@@ -305,7 +258,7 @@ impl CfgMap {
     /// 
     /// ## Examples
     /// ```
-    /// use cmap::{CfgMap, CfgValue::*, Condition::*, Checkable};
+    /// use cfgmap::{CfgMap, CfgValue::*, Condition::*, Checkable};
     /// 
     /// let mut cmap = CfgMap::new();
     /// let mut submap = CfgMap::new();
@@ -314,8 +267,8 @@ impl CfgMap {
     ///
     /// cmap.add("sub", Map(submap));
     /// 
-    /// assert!(cmap.get("sub").check_that(Is_Map));
-    /// assert!(cmap.get("sub/key").check_that(Is_Int));
+    /// assert!(cmap.get("sub").check_that(IsMap));
+    /// assert!(cmap.get("sub/key").check_that(IsInt));
     /// ```
     pub fn get(&self, key: &str) -> Option<&CfgValue> {
         let (h, t) = split_once(key, '/');
@@ -342,7 +295,7 @@ impl CfgMap {
     /// 
     /// ## Examples
     /// ```
-    /// use cmap::{CfgMap, CfgValue::*, Condition::*, Checkable};
+    /// use cfgmap::{CfgMap, CfgValue::*, Condition::*, Checkable};
     /// 
     /// let mut cmap = CfgMap::new();
     /// let mut submap = CfgMap::new();
@@ -350,10 +303,10 @@ impl CfgMap {
     /// cmap.add("sub", Map(submap));
     /// 
     /// let mut submap = cmap.get_mut("sub");
-    /// assert!(submap.check_that(Is_Map));
+    /// assert!(submap.check_that(IsMap));
     /// 
     /// submap.unwrap().as_map_mut().unwrap().add("key", Int(5));
-    /// assert!(cmap.get_mut("sub/key").check_that(Is_Int));
+    /// assert!(cmap.get_mut("sub/key").check_that(IsInt));
     /// ```
     pub fn get_mut(&mut self, key: &str) -> Option<&mut CfgValue> {
         let (h, t) = split_once(key, '/');
@@ -370,9 +323,7 @@ impl CfgMap {
         }
     }
 
-    /// Gets a reference to a default value from within the configuration.
-    /// 
-    /// Returns `None` if the key doesn't exist within the default values.
+    /// Checks whether a certain path exists.
     /// 
     /// The `key` can be of the form of the path `"a/b/...y/z/"`, in which case it will
     /// go through the inner submaps `"a/b/..."` until a submap isn't found, or the end is reached.
@@ -380,74 +331,30 @@ impl CfgMap {
     /// 
     /// ## Examples
     /// ```
-    /// use cmap::{CfgMap, CfgValue::*, Condition::*, Checkable};
-    /// 
-    /// let mut cmap = CfgMap::new();
-    /// let mut submap = CfgMap::new();
-    /// 
-    /// submap.add_default("key", Int(5));
-    ///
-    /// cmap.add_default("sub", Map(submap));
-    /// 
-    /// assert!(cmap.get_default("sub").check_that(Is_Map));
-    /// assert!(cmap.get_default("sub/key").check_that(Is_Int));
-    /// ```
-    pub fn get_default(&self, key: &str) -> Option<&CfgValue> {
-        let (h, t) = split_once(key, '/');
-
-        if t.is_none() {
-            self.defaults.get(key)
-        }
-        else {
-            self.defaults.get(&h).and_then(|op| {
-                op.as_map()
-            }).and_then(|map| {
-                map.get_default(&t.unwrap())
-            })
-        }
-    }
-
-    /// Gets a mutable reference to a default value from within the configuration.
-    /// 
-    /// Returns `None` if the key doesn't exist within the default values.
-    /// 
-    /// The `key` can be of the form of the path `"a/b/...y/z/"`, in which case it will
-    /// go through the inner submaps `"a/b/..."` until a submap isn't found, or the end is reached.
-    /// This is for convenience sake, as doing this manually can prove to be verbose.
-    /// 
-    /// ## Examples
-    /// ```
-    /// use cmap::{CfgMap, CfgValue::*, Condition::*, Checkable};
+    /// use cfgmap::{CfgMap, CfgValue::*, Condition::*, Checkable};
     /// 
     /// let mut cmap = CfgMap::new();
     /// let mut submap = CfgMap::new();
     ///
-    /// cmap.add_default("sub", Map(submap));
+    /// cmap.add("num", Int(10));
+    /// submap.add("num", Int(20));
+    /// cmap.add("sub", Map(submap));
     /// 
-    /// let mut submap = cmap.get_default_mut("sub");
-    /// assert!(submap.check_that(Is_Map));
-    /// 
-    /// submap.unwrap().as_map_mut().unwrap().add_default("key", Int(5));
-    /// assert!(cmap.get_default_mut("sub/key").check_that(Is_Int));
+    /// assert!(cmap.contains_key("num"));
+    /// assert!(cmap.contains_key("sub/num"));
     /// ```
-    pub fn get_default_mut(&mut self, key: &str) -> Option<&mut CfgValue> {
-        let (h, t) = split_once(key, '/');
-
-        if t.is_none() {
-            self.defaults.get_mut(key)
-        }
-        else {
-            self.defaults.get_mut(&h).and_then(|op| {
-                op.as_map_mut()
-            }).and_then(|map| {
-                map.get_default_mut(&t.unwrap())
-            })
-        }
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.get(key).is_some()
     }
 
-    /// Gets a reference to an option within the configuration. It first tries to get 
+    /// Gets a reference to an option within the configuration.
+    /// 
+    /// It first tries to get 
     /// `category/option` within the normal values. If this doesn't exist, it will then 
-    /// try to retrieve `option` from the default values.
+    /// try to retrieve `option` from the default path instead (`self.default/option`).
+    /// 
+    /// Note that if `default` wasn't set on construction, this function will instead retrieve
+    /// the value from the root directory (`option`) directly.
     /// 
     /// Returns `None` if the key doesn't exist in either map.
     /// 
@@ -457,24 +364,74 @@ impl CfgMap {
     /// 
     /// ## Examples
     /// ```
-    /// use cmap::{CfgMap, CfgValue::*, Condition::*, Checkable};
+    /// use cfgmap::{CfgMap, CfgValue::*};
     /// 
     /// let mut cmap = CfgMap::new();
     /// let mut submap = CfgMap::new();
     /// 
     /// submap.add("OP1", Int(5));
-    /// cmap.add_default("OP1", Int(8));
-    /// cmap.add_default("OP2", Int(10));
+    /// cmap.add("OP1", Int(8));
     /// 
     /// cmap.add("sub", Map(submap));
     /// 
     /// assert_eq!(cmap.get_option("sub", "OP1"), Some(&Int(5)));
     /// assert_eq!(cmap.get_option("foo", "OP1"), Some(&Int(8)));
-    /// assert_eq!(cmap.get_option("sub", "OP2"), Some(&Int(10)));
-    /// assert_eq!(cmap.get_option("sub", "OP3"), None);
+    /// assert_eq!(cmap.get_option("sub", "OP2"), None);
     /// ```
     pub fn get_option(&self, category: &str, option: &str) -> Option<&CfgValue> {
-        self.get(&format!("{}/{}", category, option)).or_else(|| self.get_default(option))
+        let fullkey = format!("{}/{}", category, option);
+        let default = format!("{}{}", self.default, option);
+        self.get(&fullkey).or(self.get(&default))
+    }
+
+    /// Updates the option with the new value `to`.
+    /// 
+    /// It first tries to get 
+    /// `category/option` within the normal values. If this doesn't exist, it will then 
+    /// try to retrieve `option` from the default path instead (`self.default/option`).
+    /// 
+    /// Note that if `default` wasn't set on construction, this function will instead retrieve
+    /// the value from the root directory (`option`) directly.
+    /// 
+    /// The `key` can be of the form of the path `"a/b/...y/z/"`, in which case it will
+    /// go through the inner submaps `"a/b/..."` until a submap isn't found, or the end is reached.
+    /// This is for convenience sake, as doing this manually can prove to be verbose.
+    /// 
+    /// ## Examples
+    /// ```
+    /// use cfgmap::{CfgMap, CfgValue::*};
+    /// 
+    /// let mut cmap = CfgMap::new();
+    /// let mut submap = CfgMap::new();
+    /// 
+    /// submap.add("OP1", Int(5));
+    /// cmap.add("OP1", Int(8));
+    /// 
+    /// cmap.add("sub", Map(submap));
+    /// 
+    /// let OL1 = cmap.update_option("sub", "OP1", Int(10));
+    /// let OL2 = cmap.update_option("foo", "OP1", Int(16));
+    /// let OL3 = cmap.update_option("sub", "OP2", Int(99));
+    /// 
+    /// assert_eq!(cmap.get_option("sub", "OP1"), Some(&Int(10)));
+    /// assert_eq!(cmap.get_option("foo", "OP1"), Some(&Int(16)));
+    /// assert_eq!(cmap.get_option("sub", "OP2"), None);
+    /// 
+    /// assert_eq!(OL1, Some(Int(5)));
+    /// assert_eq!(OL2, Some(Int(8)));
+    /// assert_eq!(OL3, None);
+    /// ```
+    pub fn update_option(&mut self, category: &str, option: &str, to: CfgValue) -> Option<CfgValue> {
+        let fullkey = format!("{}/{}", category, option);
+        let default = format!("{}{}", self.default, option);
+
+        if let Some(x) = self.get_mut(&fullkey) {
+            Some(mem::replace(x, to))
+        } else if let Some(x) = self.get_mut(&default) {
+            Some(mem::replace(x, to))
+        } else {
+            None
+        }
     }
 }
 
