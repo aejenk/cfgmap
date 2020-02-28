@@ -10,37 +10,37 @@ pub trait Checkable {
 
 /// Different possible conditions.
 /// 
-/// Many conditions are self explanatory, such as `Is_Int` and `Is_List`.
+/// Many conditions are self explanatory, such as `IsInt` and `IsList`.
 /// Complex conditions can be created easily using the `|` and `&` operators.
 /// So, for example, if you want to check whether an enum is an integer, *or* a float,
 /// you can do the following:
 /// 
 /// ```
-/// # use cmap::{CfgValue::*, Condition::*, Checkable};
+/// # use cfgmap::{CfgValue::*, Condition::*, Checkable};
 /// # let value = Int(5);
-/// value.check_that(Is_Int | Is_Float);
+/// value.check_that(IsInt | IsFloat);
 /// ```
 /// 
 /// If you'd rather use methods, the following is equivalent:
 /// ```
-/// # use cmap::{CfgValue::*, Condition::*, Checkable};
+/// # use cfgmap::{CfgValue::*, Condition::*, Checkable};
 /// # let value = Int(5);
-/// value.check_that(Is_Int.or(Is_Float));
+/// value.check_that(IsInt.or(IsFloat));
 /// ```
 /// 
 /// Both of the above examples expand to the following:
 /// ```
-/// # use cmap::{CfgValue::*, Condition::*, Checkable};
+/// # use cfgmap::{CfgValue::*, Condition::*, Checkable};
 /// # let value = Int(5);
-/// value.check_that(Or(Box::new(Is_Int), Box::new(Is_Float)));
+/// value.check_that(Or(Box::new(IsInt), Box::new(IsFloat)));
 /// ```
 pub enum Condition {
-    Is_Int,
-    Is_Float,
-    Is_Str,
-    Is_List,
+    IsInt,
+    IsFloat,
+    IsStr,
+    IsList,
 
-    Is_Map,
+    IsMap,
     /// A combination of two conditions.
     /// 
     /// If both evaluate to `TRUE`, the result is `TRUE`, otherwise it is `FALSE`.
@@ -86,20 +86,20 @@ impl Condition {
     /// ## Examples
     /// 
     /// ```ignore
-    /// use cmap::{Condition::*, CfgValue::*};
-    /// assert!(Is_Int.execute(Int(5)).to_bool()); 
-    /// assert!(!Is_Int.execute(Float(1.0)).to_bool());
-    /// assert!((Is_Int | Is_Float).execute(Float(1.0)).to_bool());
+    /// use cfgmap::{Condition::*, CfgValue::*};
+    /// assert!(IsInt.execute(Int(5)).to_bool()); 
+    /// assert!(!IsInt.execute(Float(1.0)).to_bool());
+    /// assert!((IsInt | IsFloat).execute(Float(1.0)).to_bool());
     /// ```
     pub fn execute(&self, input: &super::CfgValue) -> Condition {
         use Condition::*;
 
         match self {
-            Is_Int => Condition::from_bool(input.is_int()),
-            Is_Float => Condition::from_bool(input.is_float()),
-            Is_Str => Condition::from_bool(input.is_str()),
-            Is_List => Condition::from_bool(input.is_list()),
-            Is_Map => Condition::from_bool(input.is_map()),
+            IsInt => Condition::from_bool(input.is_int()),
+            IsFloat => Condition::from_bool(input.is_float()),
+            IsStr => Condition::from_bool(input.is_str()),
+            IsList => Condition::from_bool(input.is_list()),
+            IsMap => Condition::from_bool(input.is_map()),
             TRUE => TRUE,
             FALSE => FALSE,
             And(x,y) => {
