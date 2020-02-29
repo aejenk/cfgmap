@@ -1,11 +1,15 @@
 [package]
 name = "cfgmap"
+description = "A special hashmap made with configuration in mind."
 version = "0.1.0"
 authors = ["Andrea Jenkins <mctech26@gmail.com>"]
 license = "MIT"
+repository = "https://github.com/Calmynt/cfgmap"
+readme = "README.md"
+keywords = ["configuration", "map", "cfgmap"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+categories = ["config", "data-structures"]
+maintenance = { status = "actively-developed" }
 
 [lib]
 name = "cfgmap"
