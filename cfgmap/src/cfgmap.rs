@@ -1,3 +1,83 @@
+//! This crate contains a new data structure that acts as a wrapper around a `HashMap`.
+//! It provides its own data enum for values `(CfgValue)`, and contains multiple helper functions
+//! that let you navigate the hashmap easily.
+//! 
+//! Its primary purpose is for configuration, allowing for validation as well. In essence, a `CfgMap`
+//! would represent a configuration for an application. So far, alternatives for configuration would be 
+//! to use a data format library directly, or utilise a struct that a 
+//! configuration file, like JSON or TOML, would serialise into.
+//! 
+//! This can be more than satisfactory, especially for basic configurations, however in certain situations
+//! it can prove to be more than a bit cumbersome. For example, if you plan on using default options in the case
+//! that certain options aren't set, having multiple nested objects to validate and go through, etc.
+//! 
+//! It is very easy to make a new `CfgMap`. There are two methods:
+//! 
+//! ```
+//! use cfgmap::CfgMap;
+//! 
+//! let map1 = CfgMap::new();
+//! let map2 = CfgMap::with_default("default".into());
+//! ```
+//! 
+//! `CfgMap` allows for some functionality with regards to default values. With the `new()` function, the location 
+//! for default values is in the root, whereas with `with_default` it is wherever you set it. 
+//! 
+//! `CfgMap` also comes with support for a certain `path` syntax with its keys:
+//! 
+//! ```
+//! # use cfgmap::CfgMap;
+//! # let cfgmap = CfgMap::new();
+//! cfgmap.get("hello/there/pal");
+//! ```
+//! 
+//! This helps to make access to nested items easy. The line above is essentially equal to:
+//! 
+//! ```
+//! # use cfgmap::CfgMap;
+//! # let map = CfgMap::new();
+//! map.get("hello")
+//!     .and_then(|a| a.as_map())
+//!     .and_then(|a| a.get("there"))
+//!     .and_then(|a| a.as_map())
+//!     .and_then(|a| a.get("pal"));
+//! ```
+//! 
+//! Note that if `hello` or `there` weren't `CfgMap`s as well, the whole expression would evaluate to `None`.
+//! 
+//! Now, what if you want to check what a certain value evaluates to? This is something that you'll encounter 
+//! very quickly if you'd like to use any value. This crate comes with an extensive support for `Conditions`!
+//! 
+//! ```
+//! # use cfgmap::CfgMap;
+//! use cfgmap::{Condition::*, Checkable};
+//! # let cfgmap = CfgMap::new();
+//! let is_number = cfgmap.get("hello/there/pal").check_that(IsInt | IsFloat);
+//! ```
+//! 
+//! The above line will check whether the value at `hello/there/pal` is a `CfgValue::Int` or a `CfgValue::Float`.
+//! There are more conditions listed [*here*](./enum.Condition.html). If there are more conditions that you'd like added,
+//! feel free to open up an issue or open a PR! All of these serve as utilities to help validate a certain value.
+//! 
+//! Defaults can also be used quite easily:
+//! 
+//! ```
+//! # use cfgmap::CfgMap;
+//! # let map = CfgMap::new();
+//! map.get_option("http_settings", "ip_address");
+//! ```
+//! 
+//! Let's say that `map` was initialised with its default at `default`. The above line will be equivalent to the following:
+//! 
+//! ```
+//! # use cfgmap::CfgMap;
+//! # let map = CfgMap::new();
+//! map.get("http_settings/ip_address").or(map.get("default/ip_address"));
+//! ```
+//! 
+//! You can also update an option like this, using `update_option`. This works similar to using `add`, except that it doesn't 
+//! add a new option if it isn't found, only updating an existing one.
+
 use std::collections::HashMap;
 mod conditions;
 pub use conditions::{Checkable, Condition};
@@ -5,6 +85,15 @@ use std::concat;
 use std::mem;
 use std::ops::Deref;
 use std::ops::DerefMut;
+
+// The type contained within `CfgValue::Int`
+pub(crate) type _Int = isize;
+
+// The type contained within `CfgValue::Float`
+pub(crate) type _Float = f64;
+
+// The type contained within `CfgValue::Str`
+pub(crate) type _Str = String;
 
 macro_rules! doc_comment {
     ($x:expr, $($tt:tt)*) => {
@@ -60,13 +149,13 @@ macro_rules! as_mut_type {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CfgValue {
     /// Represents an integer value.
-    Int(isize),
+    Int(_Int),
 
     /// Represents a float value.
-    Float(f64),
+    Float(_Float),
 
     /// Represents a string.
-    Str(String),
+    Str(_Str),
 
     /// Represents a nested configuration map.
     Map(CfgMap),
@@ -79,22 +168,22 @@ impl CfgValue {
     /// Returns the contents of the enum converted into an integer, if possible.
     /// 
     /// If the enum represents a float, it will be converted into an integer.
-    pub fn to_int(&self) -> Option<isize> {
+    pub fn to_int(&self) -> Option<_Int> {
         if let CfgValue::Int(x) = self {
             Some(*x)
         } else if let CfgValue::Float(x) = self {
-            Some(*x as isize)
+            Some(*x as _Int)
         } else { None }
     }
 
     /// Returns the contents of the enum converted into a float, if possible.
     /// 
     /// If the enum represents an integer, it will be converted into a float.
-    pub fn to_float(&self) -> Option<f64> {
+    pub fn to_float(&self) -> Option<_Float> {
         if let CfgValue::Float(x) = self {
             Some(*x)
         } else if let CfgValue::Int(x) = self {
-            Some(*x as f64)
+            Some(*x as _Float)
         } else { None }
     }
 
@@ -104,15 +193,15 @@ impl CfgValue {
     is_type!(is_map, CfgValue::Map);
     is_type!(is_list, CfgValue::List);
 
-    as_type!(as_int, isize, CfgValue::Int);
-    as_type!(as_float, f64, CfgValue::Float);
-    as_type!(as_str, str, CfgValue::Str);
+    as_type!(as_int, _Int, CfgValue::Int);
+    as_type!(as_float, _Float, CfgValue::Float);
+    as_type!(as_str, _Str, CfgValue::Str);
     as_type!(as_map, CfgMap, CfgValue::Map);
     as_type!(as_list, Vec<CfgValue>, CfgValue::List);
 
-    as_mut_type!(as_int_mut, isize, CfgValue::Int);
-    as_mut_type!(as_float_mut, f64, CfgValue::Float);
-    as_mut_type!(as_str_mut, str, CfgValue::Str);
+    as_mut_type!(as_int_mut, _Int, CfgValue::Int);
+    as_mut_type!(as_float_mut, _Float, CfgValue::Float);
+    as_mut_type!(as_str_mut, _Str, CfgValue::Str);
     as_mut_type!(as_map_mut, CfgMap, CfgValue::Map);
     as_mut_type!(as_list_mut, Vec<CfgValue>, CfgValue::List);
 }
@@ -268,7 +357,7 @@ impl CfgMap {
     /// cmap.add("sub", Map(submap));
     /// 
     /// assert!(cmap.get("sub").check_that(IsMap));
-    /// assert!(cmap.get("sub/key").check_that(IsInt));
+    /// assert!(cmap.get("sub/key").check_that(IsExactlyInt(5)));
     /// ```
     pub fn get(&self, key: &str) -> Option<&CfgValue> {
         let (h, t) = split_once(key, '/');
@@ -306,7 +395,7 @@ impl CfgMap {
     /// assert!(submap.check_that(IsMap));
     /// 
     /// submap.unwrap().as_map_mut().unwrap().add("key", Int(5));
-    /// assert!(cmap.get_mut("sub/key").check_that(IsInt));
+    /// assert!(cmap.get_mut("sub/key").check_that(IsExactlyInt(5)));
     /// ```
     pub fn get_mut(&mut self, key: &str) -> Option<&mut CfgValue> {
         let (h, t) = split_once(key, '/');
@@ -364,7 +453,7 @@ impl CfgMap {
     /// 
     /// ## Examples
     /// ```
-    /// use cfgmap::{CfgMap, CfgValue::*};
+    /// use cfgmap::{CfgMap, CfgValue::*, Checkable, Condition::*};
     /// 
     /// let mut cmap = CfgMap::new();
     /// let mut submap = CfgMap::new();
@@ -374,9 +463,9 @@ impl CfgMap {
     /// 
     /// cmap.add("sub", Map(submap));
     /// 
-    /// assert_eq!(cmap.get_option("sub", "OP1"), Some(&Int(5)));
-    /// assert_eq!(cmap.get_option("foo", "OP1"), Some(&Int(8)));
-    /// assert_eq!(cmap.get_option("sub", "OP2"), None);
+    /// assert!(cmap.get_option("sub", "OP1").check_that(IsExactlyInt(5)));
+    /// assert!(cmap.get_option("sub", "OP1").check_that(IsExactlyInt(5)));
+    /// assert!(cmap.get_option("sub", "OP2").is_none());
     /// ```
     pub fn get_option(&self, category: &str, option: &str) -> Option<&CfgValue> {
         let fullkey = format!("{}/{}", category, option);
@@ -399,7 +488,7 @@ impl CfgMap {
     /// 
     /// ## Examples
     /// ```
-    /// use cfgmap::{CfgMap, CfgValue::*};
+    /// use cfgmap::{CfgMap, CfgValue::*, Checkable, Condition::*};
     /// 
     /// let mut cmap = CfgMap::new();
     /// let mut submap = CfgMap::new();
@@ -413,9 +502,9 @@ impl CfgMap {
     /// let OL2 = cmap.update_option("foo", "OP1", Int(16));
     /// let OL3 = cmap.update_option("sub", "OP2", Int(99));
     /// 
-    /// assert_eq!(cmap.get_option("sub", "OP1"), Some(&Int(10)));
-    /// assert_eq!(cmap.get_option("foo", "OP1"), Some(&Int(16)));
-    /// assert_eq!(cmap.get_option("sub", "OP2"), None);
+    /// assert!(cmap.get_option("sub", "OP1").check_that(IsExactlyInt(10)));
+    /// assert!(cmap.get_option("foo", "OP1").check_that(IsExactlyInt(16)));
+    /// assert!(cmap.get_option("sub", "OP2").is_none());
     /// 
     /// assert_eq!(OL1, Some(Int(5)));
     /// assert_eq!(OL2, Some(Int(8)));
@@ -433,15 +522,4 @@ impl CfgMap {
             None
         }
     }
-}
-
-#[cfg(test)]
-pub mod test {
-    use crate::{CfgMap, CfgValue, Condition};
-
-    #[test]
-    fn testing_out() {
-        let cmap = CfgMap::new();
-    }
-
 }
