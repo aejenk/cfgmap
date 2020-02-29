@@ -196,6 +196,7 @@ impl CfgValue {
     is_type!(is_int, CfgValue::Int);
     is_type!(is_float, CfgValue::Float);
     is_type!(is_str, CfgValue::Str);
+    is_type!(is_bool, CfgValue::Bool);
     is_type!(is_map, CfgValue::Map);
     is_type!(is_list, CfgValue::List);
 

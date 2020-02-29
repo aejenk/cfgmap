@@ -51,6 +51,7 @@ pub enum Condition {
     IsFloat,
     IsStr,
     IsList,
+    IsBool,
 
     IsMap,
     /// A combination of two conditions.
@@ -80,6 +81,9 @@ pub enum Condition {
 
     /// Does an exact comparison with a `CfgMap`
     IsExactlyMap(super::CfgMap),
+
+    /// Verifies it to be a `Bool`, and checks whether it is true.
+    IsTrue,
 
     /// Verifies it to be a `List` and applies the condition to each of its elements.
     IsListWith(Box<Condition>),
@@ -134,6 +138,7 @@ impl Condition {
             IsStr => input.is_str().into(),
             IsList => input.is_list().into(),
             IsMap => input.is_map().into(),
+            IsBool => input.is_bool().into(),
             TRUE => TRUE,
             FALSE => FALSE,
 
@@ -166,6 +171,7 @@ impl Condition {
             IsExactlyStr(s) => input.as_str().map_or(false, |st| *st == *s).into(),
             IsExactlyList(s) => input.as_list().map_or(false, |l| *l == *s).into(),
             IsExactlyMap(s) => input.as_map().map_or(false, |l| *l == *s).into(),
+            IsTrue => input.as_bool().map_or(false, |b| *b).into(),
 
             // Miscellaneous.
             IsListWith(s) => {
@@ -246,6 +252,7 @@ mod test {
         let i = Int(5);
         let f = Float(2.0);
         let s = Str(String::from("hello"));
+        let b = Bool(true);
         let l = List(vec![Int(2), Float(8.0)]);
         let m = Map(CfgMap::new());
 
@@ -263,6 +270,10 @@ mod test {
         assert!(s.check_that(IsStr));
         assert!(s.check_that(IsExactlyStr(String::from("hello"))));
         assert!(!s.check_that(IsExactlyStr(String::from("hella"))));
+
+        // Verifies bool
+        assert!(b.check_that(IsBool));
+        assert!(b.check_that(IsTrue));
 
         // Verifies list
         assert!(l.check_that(IsList));
