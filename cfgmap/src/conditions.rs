@@ -34,6 +34,18 @@ pub trait Checkable {
 /// # let value = Int(5);
 /// value.check_that(Or(Box::new(IsInt), Box::new(IsFloat)));
 /// ```
+/// 
+/// If you'd like to not only check the type of a `CfgValue`, but also the *value* its wrapped in,
+/// you can use the `Exactly` conditions:
+/// ```
+/// # use cfgmap::{CfgValue::*, Condition::*, Checkable};
+/// let value = Int(5);
+/// assert!(value.check_that(IsExactlyInt(5)));
+/// ```
+/// 
+/// These exist for all `CfgValue`s. There also exist other miscellaneous conditions, such as
+/// `IsListWithLength(usize)` or `IsListWith(Box<Condition>)`, which serve other purposes.
+#[derive(Clone)]
 pub enum Condition {
     IsInt,
     IsFloat,
@@ -53,6 +65,27 @@ pub enum Condition {
 
     /// Represents a negation.
     Not(Box<Condition>),
+
+    /// Does an exact comparison with an integer.
+    IsExactlyInt(super::_Int),
+
+    /// Does an exact comparison with an float.
+    IsExactlyFloat(super::_Float),
+
+    /// Does an exact comparison with a string.
+    IsExactlyStr(super::_Str),
+
+    /// Does an exact comparison with a `Vec<CfgValue>`.
+    IsExactlyList(Vec<super::CfgValue>),
+
+    /// Does an exact comparison with a `CfgMap`
+    IsExactlyMap(super::CfgMap),
+
+    /// Verifies it to be a `List` and applies the condition to each of its elements.
+    IsListWith(Box<Condition>),
+
+    /// Verifies it to be a `List`, while also having a specific length.
+    IsListWithLength(usize),
 
     /// A result condition. When executed this will always return `true`.
     TRUE,
@@ -85,23 +118,26 @@ impl Condition {
     /// 
     /// ## Examples
     /// 
-    /// ```ignore
+    /// ```
     /// use cfgmap::{Condition::*, CfgValue::*};
-    /// assert!(IsInt.execute(Int(5)).to_bool()); 
-    /// assert!(!IsInt.execute(Float(1.0)).to_bool());
-    /// assert!((IsInt | IsFloat).execute(Float(1.0)).to_bool());
+    /// assert!(IsInt.execute(&Int(5)).to_bool()); 
+    /// assert!(!IsInt.execute(&Float(1.0)).to_bool());
+    /// assert!((IsInt | IsFloat).execute(&Float(1.0)).to_bool());
     /// ```
     pub fn execute(&self, input: &super::CfgValue) -> Condition {
         use Condition::*;
 
         match self {
-            IsInt => Condition::from_bool(input.is_int()),
-            IsFloat => Condition::from_bool(input.is_float()),
-            IsStr => Condition::from_bool(input.is_str()),
-            IsList => Condition::from_bool(input.is_list()),
-            IsMap => Condition::from_bool(input.is_map()),
+            // Basic conditions.
+            IsInt => input.is_int().into(),
+            IsFloat => input.is_float().into(),
+            IsStr => input.is_str().into(),
+            IsList => input.is_list().into(),
+            IsMap => input.is_map().into(),
             TRUE => TRUE,
             FALSE => FALSE,
+
+            // Combined conditions.
             And(x,y) => {
                 let res1 = x.execute(input);
                 let res2 = y.execute(input);
@@ -123,6 +159,27 @@ impl Condition {
 
                 if res.to_bool() { FALSE } else { TRUE }
             },
+
+            // Exact condition.
+            IsExactlyInt(s) => input.as_int().map_or(false, |i| *i == *s).into(),
+            IsExactlyFloat(s) => input.as_float().map_or(false, |f| *f == *s).into(),
+            IsExactlyStr(s) => input.as_str().map_or(false, |st| *st == *s).into(),
+            IsExactlyList(s) => input.as_list().map_or(false, |l| *l == *s).into(),
+            IsExactlyMap(s) => input.as_map().map_or(false, |l| *l == *s).into(),
+
+            // Miscellaneous.
+            IsListWith(s) => {
+                input.as_list().map(|list| {
+                    for elem in list.iter() {
+                        if !elem.check_that((**s).clone()) {
+                            return FALSE;
+                        }
+                    }
+                    TRUE
+                }).map_or(FALSE, |o| o.into())
+            },
+
+            IsListWithLength(l) => input.as_list().map_or(false, |li| *l == li.len()).into(),
         }
     }
 
@@ -166,4 +223,80 @@ impl Not for Condition {
     fn not(self) -> Self::Output {
         self.not()
     }
+}
+
+impl From<bool> for Condition {
+    fn from(b: bool) -> Self {
+        Condition::from_bool(b)
+    }
+}
+
+impl From<Condition> for bool {
+    fn from(c: Condition) -> Self {
+        c.to_bool()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{CfgMap, CfgValue::*, Condition::*, Checkable};
+
+    #[test]
+    fn basic_and_exact() {
+        let i = Int(5);
+        let f = Float(2.0);
+        let s = Str(String::from("hello"));
+        let l = List(vec![Int(2), Float(8.0)]);
+        let m = Map(CfgMap::new());
+
+        // Verifies int
+        assert!(i.check_that(IsInt));
+        assert!(i.check_that(IsExactlyInt(5)));
+        assert!(!i.check_that(IsExactlyInt(6)));
+
+        // Verifies float
+        assert!(f.check_that(IsFloat));
+        assert!(f.check_that(IsExactlyFloat(2.0)));
+        assert!(!f.check_that(IsExactlyFloat(3.0)));
+
+        // Verifies string
+        assert!(s.check_that(IsStr));
+        assert!(s.check_that(IsExactlyStr(String::from("hello"))));
+        assert!(!s.check_that(IsExactlyStr(String::from("hella"))));
+
+        // Verifies list
+        assert!(l.check_that(IsList));
+        assert!(l.check_that(IsExactlyList(vec![Int(2), Float(8.0)])));
+        assert!(!l.check_that(IsExactlyList(vec![Int(2), Float(8.1)])));
+
+        // Verifies map
+        assert!(m.check_that(IsMap));
+        assert!(m.check_that(IsExactlyMap(CfgMap::new())));
+        assert!(!m.check_that(IsExactlyMap(CfgMap::with_default(String::from("default")))));
+    }
+
+    #[test]
+    fn combinations() {
+        vec![Int(5), Float(9.0), Str(String::from("foobar"))]
+            .iter()
+            .for_each(|e| assert!(e.check_that(IsInt | IsFloat | IsStr)));
+
+        vec![Int(5), Float(9.0), Str(String::from("foobar"))]
+            .iter()
+            .for_each(|e| assert!(!e.check_that(IsList | IsMap)));
+
+        vec![Int(5), Float(9.0), Str(String::from("foobar"))]
+            .iter()
+            .for_each(|e| assert!(!e.check_that(IsInt & IsFloat)));
+    }
+
+    #[test]
+    fn misc() {
+        let listexample = List(vec![Int(5), Float(9.0)]);
+
+        assert!(listexample.check_that(IsListWith(Box::new(IsInt | IsFloat))));
+        assert!(listexample.check_that(IsListWithLength(2)));
+        assert!(!listexample.check_that(IsListWithLength(3)));
+    }
+
 }
