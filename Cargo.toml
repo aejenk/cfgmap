@@ -1,6 +1,21 @@
-[workspace]
-members = [
-	"cfgmap",
-	"cfgmap_json",
-	"cfgmap_toml"
-]
+[package]
+name = "cfgmap"
+version = "0.1.0"
+authors = ["Andrea Jenkins <mctech26@gmail.com>"]
+license = "MIT"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "cfgmap"
+path = "src/cfgmap.rs"
+
+[dependencies]
+serde_json = { version = "1.0.48", optional = true }
+toml = { version = "0.5.6", optional = true }
+
+[features]
+default = ["from_json", "from_toml"]
+from_json = ["serde_json"]
+from_toml = ["toml"]

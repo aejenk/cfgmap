@@ -91,6 +91,14 @@ pub enum Condition {
     /// Verifies it to be a `List`, while also having a specific length.
     IsListWithLength(usize),
 
+    #[cfg(feature = "from_json")]
+    /// Verifies the value to be `null`. Only availiable while using `from_json`.
+    IsNull,
+
+    #[cfg(feature = "from_toml")]
+    /// Verifies the value to be a `Datetime`. Only available while using `from_toml`.
+    IsDatetime,
+
     /// A result condition. When executed this will always return `true`.
     TRUE,
 
@@ -186,6 +194,14 @@ impl Condition {
             },
 
             IsListWithLength(l) => input.as_list().map_or(false, |li| *l == li.len()).into(),
+
+            // Feature-dependent.
+
+            #[cfg(feature = "from_json")]
+            IsNull => input.is_null().into(),
+
+            #[cfg(feature = "from_toml")]
+            IsDatetime => input.is_datetime().into(),
         }
     }
 
@@ -283,7 +299,9 @@ mod test {
         // Verifies map
         assert!(m.check_that(IsMap));
         assert!(m.check_that(IsExactlyMap(CfgMap::new())));
-        assert!(!m.check_that(IsExactlyMap(CfgMap::with_default(String::from("default")))));
+        let mut map = CfgMap::new();
+        map.default = "default".into();
+        assert!(!m.check_that(IsExactlyMap(map)));
     }
 
     #[test]
