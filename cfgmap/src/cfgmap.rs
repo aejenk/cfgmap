@@ -59,7 +59,7 @@
 //! There are more conditions listed [*here*](./enum.Condition.html). If there are more conditions that you'd like added,
 //! feel free to open up an issue or open a PR! All of these serve as utilities to help validate a certain value.
 //! 
-//! Defaults can also be used quite easily:
+//! Defaults can also be used quite easily:+
 //! 
 //! ```
 //! # use cfgmap::CfgMap;
@@ -94,6 +94,9 @@ pub(crate) type _Float = f64;
 
 // The type contained within `CfgValue::Str`
 pub(crate) type _Str = String;
+
+/// The type contained within `CfgValue::Bool`
+pub(crate) type _Bool = bool;
 
 macro_rules! doc_comment {
     ($x:expr, $($tt:tt)*) => {
@@ -157,6 +160,9 @@ pub enum CfgValue {
     /// Represents a string.
     Str(_Str),
 
+    /// Represents a bool.
+    Bool(_Bool),
+
     /// Represents a nested configuration map.
     Map(CfgMap),
 
@@ -196,12 +202,14 @@ impl CfgValue {
     as_type!(as_int, _Int, CfgValue::Int);
     as_type!(as_float, _Float, CfgValue::Float);
     as_type!(as_str, _Str, CfgValue::Str);
+    as_type!(as_bool, _Bool, CfgValue::Bool);
     as_type!(as_map, CfgMap, CfgValue::Map);
     as_type!(as_list, Vec<CfgValue>, CfgValue::List);
 
     as_mut_type!(as_int_mut, _Int, CfgValue::Int);
     as_mut_type!(as_float_mut, _Float, CfgValue::Float);
     as_mut_type!(as_str_mut, _Str, CfgValue::Str);
+    as_mut_type!(as_bool_mut, _Bool, CfgValue::Bool);
     as_mut_type!(as_map_mut, CfgMap, CfgValue::Map);
     as_mut_type!(as_list_mut, Vec<CfgValue>, CfgValue::List);
 }
