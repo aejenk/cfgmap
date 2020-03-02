@@ -10,10 +10,10 @@ A special hashmap made with configuration in mind.
 
 <div align="center">
   <a href="https://crates.io/crates/cfgmap">
-    <img src="https://img.shields.io/crates/v/cfgmap.svg" alt="Glitchup crate">
+    <img src="https://img.shields.io/crates/v/cfgmap.svg" alt="cfgmap crate">
   </a> 
    <a href="https://docs.rs/crate/cfgmap">
-    <img src="https://docs.rs/cfgmap/badge.svg" alt="Glitchup docs">
+    <img src="https://docs.rs/cfgmap/badge.svg" alt="cfgmap docs">
   </a>
 </div>
 
