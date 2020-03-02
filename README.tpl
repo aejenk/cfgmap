@@ -1,4 +1,4 @@
-<h1 align="center">glitchup</h1>
+<h1 align="center">cfgmap</h1>
 
 <div align="center">
 <sub>
