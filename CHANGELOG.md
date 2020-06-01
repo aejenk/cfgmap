@@ -6,8 +6,15 @@ All notable changes to this project are documented in this file.
 
 - [Changelog](#changelog)
   - [Overview](#overview)
+  - [[0.4.0]](#040)
   - [[0.3.0]](#030)
   - [[0.2.1]](#021)
+
+## [0.4.0]
+
+_2020.06.01_
+
+- **Added support for YAML**
 
 ## [0.3.0]
 

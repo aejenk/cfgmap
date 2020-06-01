@@ -22,7 +22,7 @@ fn tomlmap_to_cfgval(map: Table) -> CfgValue {
     }).collect()))
 }
 
-/// Only works if the value is a json `Map`.
+/// Only works if the value is a toml `Map`.
 pub(crate) fn toml_to_cfg(value: Value) -> CfgMap {
     if let CfgValue::Map(x) = tomlval_to_cfgval(value) {
         x
