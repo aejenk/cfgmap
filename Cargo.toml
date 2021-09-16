@@ -1,0 +1,32 @@
+[package]
+name = "cfgmap"
+description = "A special hashmap made with configuration in mind."
+version = "0.4.0"
+authors = ["ENBYSS"]
+license = "MPL-2.0"
+repository = "https://github.com/Calmynt/cfgmap"
+readme = "README.md"
+keywords = ["configuration", "map", "cfgmap"]
+edition = "2018"
+categories = ["config", "data-structures"]
+maintenance = { status = "actively-developed" }
+
+[lib]
+name = "cfgmap"
+path = "src/cfgmap.rs"
+
+[dependencies]
+serde_json = { version = "1.0.48", optional = true }
+toml = { version = "0.5.6", optional = true }
+rand = { version = "0.7.0", optional = true }
+yaml-rust = { version = "0.4.4", optional = true }
+
+[features]
+default = []
+from_json = ["serde_json"]
+from_toml = ["toml"]
+from_yaml = ["yaml-rust"]
+generator = ["rand"]
+
+[package.metadata.docs.rs]
+all-features = true
